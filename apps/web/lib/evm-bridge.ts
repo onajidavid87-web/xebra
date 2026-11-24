@@ -14,6 +14,7 @@ import {
 } from "@xebra/sdk/build";
 import { type EvmChain, formatUsdc6 } from "@xebra/sdk/core";
 import {
+  type ChainTarget,
   type Hex,
   ensureChain,
   ethCall,
@@ -185,7 +186,12 @@ export interface EvmBridgeRequest {
   /** What Circle may keep, from `planEvmFee`. */
   maxFee: bigint;
   finality: Finality;
-  onStep?: (step: EvmBridgeStep) => void;
+  onStep?: (step: EvmBridgeStep, data?: { hash?: Hex }) => void;
+  /**
+   * Called as soon as the approval transaction is sent, exposing its hash while waiting
+   * for confirmation so the UI can link to the explorer.
+   */
+  onApprovalHash?: (hash: Hex) => void;
   /**
    * The fee this transfer needs *now*. Asked only after an approval, since that can take minutes
    * and Circle's quote moves. Returning more than `maxFee` stops the transfer before the burn.
@@ -221,7 +227,7 @@ const NOTHING_BURNED = "Nothing was burned.";
 export async function submitEvmBridge(req: EvmBridgeRequest): Promise<EvmBridgeResult> {
   const { provider, from, source, destination, amount, maxFee } = req;
   const via = req.via ?? null;
-  const step = (s: EvmBridgeStep) => req.onStep?.(s);
+  const step = (s: EvmBridgeStep, data?: { hash?: Hex }) => req.onStep?.(s, data);
   const burnInput: EvmBurnInput = {
     source,
     destination,
@@ -279,10 +285,12 @@ export async function submitEvmBridge(req: EvmBridgeRequest): Promise<EvmBridgeR
       chainId: source.chainId,
     });
 
-    step("confirming-approval");
+    req.onApprovalHash?.(approvalTxHash);
+    step("confirming-approval", { hash: approvalTxHash });
     const outcome = await waitForReceipt(provider, approvalTxHash, {
       timeoutMs: RECEIPT_TIMEOUT_MS,
       pollMs: RECEIPT_POLL_MS,
+      chain: source,
     });
     if (outcome !== "success") {
       throw new Error(`The approval was reverted on ${source.name}. ${NOTHING_BURNED}`);
@@ -401,9 +409,11 @@ export async function submitEvmBridge(req: EvmBridgeRequest): Promise<EvmBridgeR
 export function watchBurn(
   provider: Eip1193Provider,
   txHash: string,
+  chain?: ChainTarget,
 ): Promise<"success" | "reverted"> {
   return waitForReceipt(provider, txHash, {
     timeoutMs: RECEIPT_TIMEOUT_MS,
     pollMs: RECEIPT_POLL_MS,
+    chain,
   });
 }
