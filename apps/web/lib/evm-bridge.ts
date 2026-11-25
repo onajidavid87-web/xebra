@@ -186,12 +186,11 @@ export interface EvmBridgeRequest {
   /** What Circle may keep, from `planEvmFee`. */
   maxFee: bigint;
   finality: Finality;
-  onStep?: (step: EvmBridgeStep, data?: { hash?: Hex }) => void;
   /**
-   * Called as soon as the approval transaction is sent, exposing its hash while waiting
-   * for confirmation so the UI can link to the explorer.
+   * Each step as it starts. `confirming-approval` carries the approval's hash, so the page can
+   * link the explorer while it waits.
    */
-  onApprovalHash?: (hash: Hex) => void;
+  onStep?: (step: EvmBridgeStep, data?: { hash?: Hex }) => void;
   /**
    * The fee this transfer needs *now*. Asked only after an approval, since that can take minutes
    * and Circle's quote moves. Returning more than `maxFee` stops the transfer before the burn.
@@ -285,7 +284,6 @@ export async function submitEvmBridge(req: EvmBridgeRequest): Promise<EvmBridgeR
       chainId: source.chainId,
     });
 
-    req.onApprovalHash?.(approvalTxHash);
     step("confirming-approval", { hash: approvalTxHash });
     const outcome = await waitForReceipt(provider, approvalTxHash, {
       timeoutMs: RECEIPT_TIMEOUT_MS,

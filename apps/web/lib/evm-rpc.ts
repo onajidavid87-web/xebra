@@ -40,8 +40,6 @@ export class EvmReceiptTimeoutError extends Error {
   }
 }
 
-export { EvmReceiptTimeoutError as ReceiptTimeoutError };
-
 export type Hex = `0x${string}`;
 
 const hex = (n: number) => `0x${n.toString(16)}`;
@@ -248,31 +246,14 @@ export interface WaitOptions {
   /** Injected in tests. */
   sleep?: ((ms: number) => Promise<void>) | undefined;
   now?: (() => number) | undefined;
-  chain?:
-    | ChainTarget
-    | { name: string; explorerUrl?: string; explorerTxUrl?: (hash: string) => string }
-    | string
-    | undefined;
+  /** The chain the transaction is on, so a timeout can name it and link its explorer. */
+  chain?: ChainTarget | undefined;
 }
 
-function formatReceiptTimeout(
-  hash: string,
-  timeoutMs: number,
-  chain?: WaitOptions["chain"],
-): string {
-  if (!chain) {
-    return `no receipt for ${hash} after ${Math.round(timeoutMs / 1000)}s`;
-  }
-  const name = typeof chain === "string" ? chain : (chain?.name ?? "The network");
-  const explorer =
-    typeof chain === "object" && chain !== null
-      ? typeof (chain as { explorerTxUrl?: unknown }).explorerTxUrl === "function"
-        ? (chain as { explorerTxUrl: (h: string) => string }).explorerTxUrl(hash)
-        : chain.explorerUrl
-          ? `${chain.explorerUrl.replace(/\/+$/, "")}/tx/${hash}`
-          : hash
-      : hash;
-  return `${name} has not confirmed the transaction yet. It may still go through: check ${explorer}.`;
+function formatReceiptTimeout(hash: string, timeoutMs: number, chain?: ChainTarget): string {
+  if (!chain) return `no receipt for ${hash} after ${Math.round(timeoutMs / 1000)}s`;
+  const explorer = `${chain.explorerUrl.replace(/\/+$/, "")}/tx/${hash}`;
+  return `${chain.name} has not confirmed the transaction yet. It may still go through: check ${explorer}.`;
 }
 
 /**
