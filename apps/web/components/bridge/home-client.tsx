@@ -97,17 +97,16 @@ function FailedConfigNotice({
   claimHref: string;
 }) {
   return (
-    <Notice tone="info" title="Transfer still on its way">
+    <Notice tone="info" title="Your transfer is still on its way">
       <p>
-        We could not load the {chain} configuration, but your transfer is safe on chain:{" "}
+        We can&rsquo;t reach Xebra right now, so the {chain} form is hidden. Your transfer was sent:{" "}
         <span className="break-all font-mono text-xs text-bone/70">{tx}</span>
       </p>
       <p className="mt-2">
-        You can track or complete it at{" "}
+        Track or finish it here:{" "}
         <a href={claimHref} className="underline underline-offset-2 hover:text-bone">
-          {claimHref}
+          Open the claim page
         </a>
-        .
       </p>
     </Notice>
   );
